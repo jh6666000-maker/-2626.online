@@ -19,7 +19,7 @@
 ### 4. 配置构建设置
 1. **Project name**: 可以使用默认名称或自定义
 2. **Production branch**: `main`
-3. **Build settings**:
+3. **Build settings**:      
    - **Framework preset**: 选择 `None`
    - **Build command**: 留空或输入 `echo 'Static site'`
    - **Build output directory**: 留空（默认为根目录）

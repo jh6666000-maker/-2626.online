@@ -7,9 +7,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: Deploy
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Deploy to Cloudflare Pages
@@ -18,9 +17,6 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           projectName: snake-game-2626
-          directory: .
           branch: main
-          # 静态站点不需要构建命令，Cloudflare Pages会自动处理
-          buildCommand: ""
-          # 输出目录就是当前目录
-          outputDirectory: "."
+          # 依赖Cloudflare控制台中的构建设置
+          directory: .

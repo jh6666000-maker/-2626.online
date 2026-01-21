@@ -170,30 +170,44 @@
             transform: scale(0.95);
         }
 
+        /* 重置所有按钮的默认定位 */
+        .mobile-btn:nth-child(n) {
+            grid-column: auto;
+            grid-row: auto;
+            visibility: visible;
+        }
+        
+        /* 上按钮：中间顶行 */
         .mobile-btn:nth-child(2) {
             grid-column: 2;
             grid-row: 1;
         }
 
-        .mobile-btn:nth-child(3) {
+        /* 左按钮：左侧中行 */
+        .mobile-btn:nth-child(4) {
             grid-column: 1;
             grid-row: 2;
         }
 
-        .mobile-btn:nth-child(4) {
-            grid-column: 2;
-            grid-row: 2;
-            visibility: hidden;
-        }
-
-        .mobile-btn:nth-child(5) {
+        /* 右按钮：右侧中行 */
+        .mobile-btn:nth-child(6) {
             grid-column: 3;
             grid-row: 2;
         }
 
-        .mobile-btn:nth-child(6) {
+        /* 下按钮：中间底行 */
+        .mobile-btn:nth-child(8) {
             grid-column: 2;
             grid-row: 3;
+        }
+        
+        /* 隐藏角落的空白按钮 */
+        .mobile-btn:nth-child(1),
+        .mobile-btn:nth-child(3),
+        .mobile-btn:nth-child(5),
+        .mobile-btn:nth-child(7),
+        .mobile-btn:nth-child(9) {
+            visibility: hidden;
         }
 
         .game-over {
@@ -350,11 +364,15 @@
         </div>
 
         <div class="mobile-controls">
+            <div class="mobile-btn"></div>
             <div class="mobile-btn" onclick="changeDirection('up')">↑</div>
+            <div class="mobile-btn"></div>
             <div class="mobile-btn" onclick="changeDirection('left')">←</div>
             <div class="mobile-btn"></div>
             <div class="mobile-btn" onclick="changeDirection('right')">→</div>
+            <div class="mobile-btn"></div>
             <div class="mobile-btn" onclick="changeDirection('down')">↓</div>
+            <div class="mobile-btn"></div>
         </div>
     </div>
 
@@ -366,6 +384,17 @@
                 <p>最终关卡: <span id="finalLevel">1</span></p>
             </div>
             <button class="btn btn-primary" onclick="resetGame()">再来一局</button>
+        </div>
+    </div>
+    
+    <div class="game-over" id="levelUpModal" style="display: none;">
+        <div class="game-over-content">
+            <h2 class="game-over-title" style="color: #4ecdc4;">恭喜升级！</h2>
+            <div class="game-over-text">
+                <p>你已经升级到第 <span id="newLevel">1</span> 关！</p>
+                <p>游戏速度将更快，挑战更大！</p>
+            </div>
+            <button class="btn btn-primary" onclick="closeLevelUpModal()">继续游戏</button>
         </div>
     </div>
 
@@ -410,11 +439,22 @@
             }
         }
         
+        // 激活音频上下文（处理浏览器自动播放策略）
+        function resumeAudio() {
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        }
+        
         // 播放音效
         function playSound(frequency, duration, type = 'sine') {
             if (!gameState.soundEnabled) return;
             
             initAudio();
+            resumeAudio();
+            
+            // 确保音频上下文已激活
+            if (audioContext.state !== 'running') return;
             
             const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
@@ -512,15 +552,31 @@
 
         // 生成食物
         function generateFood() {
-            let newFood;
-            do {
-                newFood = {
-                    x: Math.floor(Math.random() * config.gridSize),
-                    y: Math.floor(Math.random() * config.gridSize)
-                };
-            } while (gameState.snake.some(segment => segment.x === newFood.x && segment.y === newFood.y));
+            // 计算所有可能的空白位置
+            const allPositions = new Set();
+            for (let x = 0; x < config.gridSize; x++) {
+                for (let y = 0; y < config.gridSize; y++) {
+                    allPositions.add(`${x},${y}`);
+                }
+            }
             
-            gameState.food = newFood;
+            // 移除蛇身占用的位置
+            gameState.snake.forEach(segment => {
+                allPositions.delete(`${segment.x},${segment.y}`);
+            });
+            
+            // 如果没有空白位置（游戏应该已经结束），返回
+            if (allPositions.size === 0) {
+                console.warn('No empty positions for food');
+                return;
+            }
+            
+            // 从空白位置中随机选择一个
+            const availablePositions = Array.from(allPositions);
+            const randomIndex = Math.floor(Math.random() * availablePositions.length);
+            const [x, y] = availablePositions[randomIndex].split(',').map(Number);
+            
+            gameState.food = { x, y };
         }
 
         // 更新速度
@@ -555,7 +611,7 @@
             if (gameState.gameRunning && !gameState.gamePaused) {
                 gameState.gamePaused = true;
                 if (gameState.animationId) {
-                    cancelAnimationFrame(gameState.animationId);
+                    clearTimeout(gameState.animationId);
                     gameState.animationId = null;
                 }
             }
@@ -564,7 +620,7 @@
         // 重置游戏
         function resetGame() {
             if (gameState.animationId) {
-                cancelAnimationFrame(gameState.animationId);
+                clearTimeout(gameState.animationId);
                 gameState.animationId = null;
             }
             
@@ -591,11 +647,12 @@
         function gameLoop() {
             if (!gameState.gameRunning || gameState.gamePaused) return;
             
-            setTimeout(() => {
-                update();
-                draw();
-                playMoveSound(); // 播放移动音效
-                gameState.animationId = requestAnimationFrame(gameLoop);
+            update();
+            draw();
+            playMoveSound(); // 播放移动音效
+            
+            gameState.animationId = setTimeout(() => {
+                gameLoop();
             }, gameState.speed);
         }
 
@@ -665,6 +722,12 @@
             return false;
         }
 
+        // 关闭升级弹窗
+        function closeLevelUpModal() {
+            document.getElementById('levelUpModal').style.display = 'none';
+            startGame();
+        }
+        
         // 升级
         function levelUp() {
             gameState.level++;
@@ -673,12 +736,10 @@
             updateUI();
             playLevelUpSound(); // 播放升级音效
             
-            // 短暂暂停显示升级信息
+            // 显示升级弹窗
             pauseGame();
-            setTimeout(() => {
-                alert(`恭喜！升级到第 ${gameState.level} 关！速度更快了哦！`);
-                startGame();
-            }, 500);
+            document.getElementById('newLevel').textContent = gameState.level;
+            document.getElementById('levelUpModal').style.display = 'flex';
         }
 
         // 结束游戏
@@ -706,17 +767,21 @@
         
         // 加载最高分
         function loadHighScore() {
-            const savedHighScore = localStorage.getItem('snakeGameHighScore');
+            const key = `snakeGameHighScore_${gameState.difficulty}`;
+            const savedHighScore = localStorage.getItem(key);
             if (savedHighScore) {
                 gameState.highScore = parseInt(savedHighScore);
+            } else {
+                gameState.highScore = 0;
             }
         }
         
         // 保存最高分
         function saveHighScore() {
+            const key = `snakeGameHighScore_${gameState.difficulty}`;
             if (gameState.score > gameState.highScore) {
                 gameState.highScore = gameState.score;
-                localStorage.setItem('snakeGameHighScore', gameState.highScore.toString());
+                localStorage.setItem(key, gameState.highScore.toString());
             }
         }
 
@@ -913,9 +978,53 @@
             }
         }
 
+        // 处理窗口大小变化
+        function handleResize() {
+            // 保存当前游戏状态
+            const wasRunning = gameState.gameRunning;
+            const wasPaused = gameState.gamePaused;
+            
+            // 暂停游戏（如果正在运行）
+            if (wasRunning && !wasPaused) {
+                pauseGame();
+            }
+            
+            // 更新画布大小
+            const containerWidth = document.querySelector('.canvas-container').clientWidth;
+            const size = Math.min(containerWidth - 20, 400);
+            gameState.canvas.width = size;
+            gameState.canvas.height = size;
+            
+            // 重新计算网格大小
+            config.tileSize = Math.floor(size / config.gridSize);
+            
+            // 重新绘制游戏
+            draw();
+            
+            // 恢复游戏状态
+            if (wasRunning && !wasPaused) {
+                setTimeout(() => {
+                    startGame();
+                }, 100);
+            }
+        }
+        
+        // 添加防抖处理
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
         // 初始化游戏
         window.addEventListener('load', initGame);
-        window.addEventListener('resize', initGame);
+        window.addEventListener('resize', debounce(handleResize, 200));
     </script>
 </body>
 </html>

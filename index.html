@@ -241,7 +241,14 @@
             }
 
             .game-info {
-                font-size: 1em;
+                font-size: 0.9em;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .info-item {
+                padding: 6px 12px;
+                font-size: 0.9em;
             }
 
             #gameCanvas {
@@ -251,6 +258,13 @@
 
             .mobile-controls {
                 display: grid;
+                gap: 15px;
+                max-width: 280px;
+            }
+
+            .mobile-btn {
+                padding: 25px;
+                font-size: 1.5em;
             }
         }
 
@@ -259,13 +273,46 @@
                 font-size: 1.5em;
             }
 
+            .control-row {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
             .btn {
-                padding: 10px 20px;
-                font-size: 0.9em;
+                padding: 10px 16px;
+                font-size: 0.85em;
+                min-width: 80px;
+            }
+
+            .mobile-controls {
+                gap: 12px;
+                max-width: 250px;
             }
 
             .mobile-btn {
-                padding: 15px;
+                padding: 20px;
+                font-size: 1.3em;
+            }
+        }
+        
+        @media (max-width: 360px) {
+            .game-info {
+                font-size: 0.8em;
+                gap: 6px;
+            }
+            
+            .info-item {
+                padding: 5px 10px;
+            }
+            
+            .btn {
+                padding: 8px 14px;
+                font-size: 0.8em;
+                min-width: 70px;
+            }
+            
+            .mobile-btn {
+                padding: 18px;
                 font-size: 1.2em;
             }
         }
@@ -276,10 +323,11 @@
         <div class="game-header">
             <h1 class="game-title">贪吃蛇大冒险</h1>
             <div class="game-info">
-                <div class="info-item">分数: <span id="score">0</span></div>
-                <div class="info-item">关卡: <span id="level">1</span></div>
-                <div class="info-item">目标: <span id="target">10</span></div>
-            </div>
+            <div class="info-item">分数: <span id="score">0</span></div>
+            <div class="info-item">关卡: <span id="level">1</span></div>
+            <div class="info-item">目标: <span id="target">10</span></div>
+            <div class="info-item">最高分: <span id="highScore">0</span></div>
+        </div>
         </div>
 
         <div class="difficulty-selector">
@@ -297,6 +345,7 @@
                 <button class="btn btn-primary" onclick="startGame()">开始游戏</button>
                 <button class="btn btn-secondary" onclick="pauseGame()">暂停</button>
                 <button class="btn" onclick="resetGame()">重置</button>
+                <button class="btn btn-secondary" onclick="toggleSound()" id="soundBtn">🔊 音效</button>
             </div>
         </div>
 
@@ -346,8 +395,72 @@
             gameRunning: false,
             gamePaused: false,
             difficulty: 'easy',
-            animationId: null
+            animationId: null,
+            highScore: 0,
+            soundEnabled: true
         };
+        
+        // 音频上下文
+        let audioContext = null;
+        
+        // 初始化音频上下文
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+        
+        // 播放音效
+        function playSound(frequency, duration, type = 'sine') {
+            if (!gameState.soundEnabled) return;
+            
+            initAudio();
+            
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+            oscillator.type = type;
+            
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration);
+        }
+        
+        // 播放移动音效
+        function playMoveSound() {
+            playSound(200, 0.05, 'square');
+        }
+        
+        // 播放吃食物音效
+        function playEatSound() {
+            playSound(400, 0.1, 'sine');
+            setTimeout(() => playSound(600, 0.1, 'sine'), 50);
+        }
+        
+        // 播放升级音效
+        function playLevelUpSound() {
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => playSound(300 + i * 100, 0.1, 'sine'), i * 100);
+            }
+        }
+        
+        // 播放游戏结束音效
+        function playGameOverSound() {
+            playSound(100, 0.3, 'sawtooth');
+        }
+        
+        // 切换音效开关
+        function toggleSound() {
+            gameState.soundEnabled = !gameState.soundEnabled;
+            const soundBtn = document.getElementById('soundBtn');
+            soundBtn.textContent = gameState.soundEnabled ? '🔊 音效' : '🔇 音效';
+        }
 
         // 初始化游戏
         function initGame() {
@@ -362,6 +475,9 @@
             
             // 重新计算网格大小
             config.tileSize = Math.floor(size / config.gridSize);
+            
+            // 加载最高分
+            loadHighScore();
             
             // 初始化贪吃蛇
             resetGame();
@@ -415,7 +531,11 @@
                 hard: 100
             }[gameState.difficulty];
             
-            gameState.speed = Math.max(50, baseSpeed - (gameState.level - 1) * config.speedDecrease);
+            // 调整速度增加公式，让后期速度增加更加平缓
+            // 使用平方根函数来减缓速度增加
+            const speedDecrease = Math.floor((gameState.level - 1) * Math.sqrt(config.speedDecrease));
+            // 设置更低的速度减少量和更高的最低速度限制
+            gameState.speed = Math.max(80, baseSpeed - speedDecrease);
         }
 
         // 开始游戏
@@ -474,6 +594,7 @@
             setTimeout(() => {
                 update();
                 draw();
+                playMoveSound(); // 播放移动音效
                 gameState.animationId = requestAnimationFrame(gameLoop);
             }, gameState.speed);
         }
@@ -513,6 +634,7 @@
             // 检查是否吃到食物
             if (head.x === gameState.food.x && head.y === gameState.food.y) {
                 gameState.score += config.foodValue;
+                playEatSound(); // 播放吃食物音效
                 generateFood();
                 updateUI();
                 
@@ -549,6 +671,7 @@
             gameState.target += config.levelUpScore;
             updateSpeed();
             updateUI();
+            playLevelUpSound(); // 播放升级音效
             
             // 短暂暂停显示升级信息
             pauseGame();
@@ -562,6 +685,10 @@
         function endGame() {
             gameState.gameRunning = false;
             gameState.gamePaused = false;
+            playGameOverSound(); // 播放游戏结束音效
+            
+            // 保存最高分
+            saveHighScore();
             
             // 显示游戏结束界面
             document.getElementById('finalScore').textContent = gameState.score;
@@ -574,6 +701,23 @@
             document.getElementById('score').textContent = gameState.score;
             document.getElementById('level').textContent = gameState.level;
             document.getElementById('target').textContent = gameState.target;
+            document.getElementById('highScore').textContent = gameState.highScore;
+        }
+        
+        // 加载最高分
+        function loadHighScore() {
+            const savedHighScore = localStorage.getItem('snakeGameHighScore');
+            if (savedHighScore) {
+                gameState.highScore = parseInt(savedHighScore);
+            }
+        }
+        
+        // 保存最高分
+        function saveHighScore() {
+            if (gameState.score > gameState.highScore) {
+                gameState.highScore = gameState.score;
+                localStorage.setItem('snakeGameHighScore', gameState.highScore.toString());
+            }
         }
 
         // 绘制游戏
@@ -767,13 +911,6 @@
             ) {
                 gameState.nextDirection = dir;
             }
-        }
-
-        // 更新UI
-        function updateUI() {
-            document.getElementById('score').textContent = gameState.score;
-            document.getElementById('level').textContent = gameState.level;
-            document.getElementById('target').textContent = gameState.target;
         }
 
         // 初始化游戏

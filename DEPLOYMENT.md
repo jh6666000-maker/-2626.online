@@ -55,9 +55,16 @@
 当您对代码进行更改并推送到 GitHub 仓库的 `main` 分支时，Cloudflare Pages 会自动触发新的部署。
 
 ## 故障排除
+- **构建失败：Missing entry-point to Worker script or to assets directory**
+  - 原因：使用了错误的部署命令或配置
+  - 解决方案：确保使用 `cloudflare/pages-action` 而非 `wrangler deploy` 命令，静态站点不需要 Worker 脚本入口
+  - 检查 `wrangler.jsonc` 文件是否正确配置了 assets 目录
+  - 确保 GitHub Actions 工作流使用正确的构建命令
+
 - 如果遇到部署问题，请检查 Cloudflare Pages 控制台中的构建日志
 - 确保域名的 DNS 记录已正确配置
 - 对于自定义域名，请确保已在 Cloudflare 中添加并验证
+- 确保 Cloudflare API 令牌有足够的权限
 
 ## 联系信息
 如果您需要进一步的帮助，请联系 Cloudflare 支持或查看 [Cloudflare Pages 文档](https://developers.cloudflare.com/pages/)。

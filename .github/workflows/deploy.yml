@@ -3,14 +3,13 @@ name: Deploy to Cloudflare Pages
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    name: Deploy
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v3
 
       - name: Deploy to Cloudflare Pages
@@ -21,7 +20,7 @@ jobs:
           projectName: snake-game-2626
           directory: .
           branch: main
-          # 可选：指定构建命令（对于静态站点可以省略）
-          # buildCommand: echo "Static site"
-          # 可选：指定构建输出目录（对于静态站点可以省略）
-          # outputDirectory: .
+          # 静态站点不需要构建命令，Cloudflare Pages会自动处理
+          buildCommand: ""
+          # 输出目录就是当前目录
+          outputDirectory: "."

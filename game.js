@@ -170,6 +170,16 @@ function initLanguage() {
         // 没有保存的语言设置，显示语言选择弹窗
         showLanguageModal();
     }
+    
+    // 为语言选项添加一次性事件监听
+    document.querySelectorAll('.language-option-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            // 移除所有按钮的active类
+            document.querySelectorAll('.language-option-btn').forEach(b => b.classList.remove('active'));
+            // 为当前点击的按钮添加active类
+            btn.classList.add('active');
+        });
+    });
 }
 
 // 显示语言选择弹窗
@@ -178,16 +188,6 @@ function showLanguageModal() {
     if (modal) {
         modal.style.display = 'flex';
     }
-    
-    // 添加语言选项点击事件监听
-    document.querySelectorAll('.language-option-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            // 移除所有按钮的active类
-            document.querySelectorAll('.language-option-btn').forEach(b => b.classList.remove('active'));
-            // 为当前点击的按钮添加active类
-            btn.classList.add('active');
-        });
-    });
 }
 
 // 隐藏语言选择弹窗

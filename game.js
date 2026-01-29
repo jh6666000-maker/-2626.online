@@ -313,7 +313,89 @@ function toggleSound() {
 }
 
 // 初始化游戏
+// 初始化粒子效果
+function initParticles() {
+    const container = document.getElementById('particlesContainer');
+    if (!container) return;
+    
+    // 清空容器
+    container.innerHTML = '';
+    
+    // 创建粒子
+    for (let i = 0; i < 50; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        
+        // 随机位置
+        particle.style.left = Math.random() * 100 + '%';
+        
+        // 随机大小
+        const size = Math.random() * 4 + 2;
+        particle.style.width = size + 'px';
+        particle.style.height = size + 'px';
+        
+        // 随机透明度
+        particle.style.opacity = Math.random() * 0.5 + 0.2;
+        
+        // 随机动画延迟
+        particle.style.animationDelay = Math.random() * 20 + 's';
+        
+        // 随机动画持续时间
+        particle.style.animationDuration = (Math.random() * 10 + 15) + 's';
+        
+        container.appendChild(particle);
+    }
+}
+
+// 创建得分动画
+function createScoreAnimation(x, y, points) {
+    const scoreElement = document.createElement('div');
+    scoreElement.className = 'score-animation';
+    scoreElement.textContent = '+' + points;
+    scoreElement.style.position = 'absolute';
+    scoreElement.style.left = (x + 0.5) * config.tileSize + 'px';
+    scoreElement.style.top = (y + 0.5) * config.tileSize + 'px';
+    scoreElement.style.transform = 'translate(-50%, -50%)';
+    scoreElement.style.color = '#ff6b6b';
+    scoreElement.style.fontSize = '20px';
+    scoreElement.style.fontWeight = 'bold';
+    scoreElement.style.textShadow = '0 0 10px rgba(255, 107, 107, 0.8)';
+    scoreElement.style.pointerEvents = 'none';
+    scoreElement.style.zIndex = '100';
+    scoreElement.style.animation = 'scoreFloat 1s ease-out forwards';
+    
+    // 添加动画样式
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes scoreFloat {
+            0% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -100px) scale(1.5);
+            }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    const canvasContainer = document.querySelector('.canvas-container');
+    if (canvasContainer) {
+        canvasContainer.appendChild(scoreElement);
+        
+        // 动画结束后移除元素
+        setTimeout(() => {
+            scoreElement.remove();
+            style.remove();
+        }, 1000);
+    }
+}
+
 function initGame() {
+    // 初始化粒子效果
+    initParticles();
+    
     gameState.canvas = document.getElementById('gameCanvas');
     gameState.ctx = gameState.canvas.getContext('2d');
     
@@ -504,6 +586,10 @@ function update() {
     // 检查是否吃到食物
     if (head.x === gameState.food.x && head.y === gameState.food.y) {
         gameState.score += config.foodValue;
+        
+        // 创建得分动画
+        createScoreAnimation(gameState.food.x, gameState.food.y, config.foodValue);
+        
         playEatSound(); // 播放吃食物音效
         generateFood();
         updateUI();
@@ -604,11 +690,11 @@ function draw() {
     const canvas = gameState.canvas;
     
     // 清空画布
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     // 绘制网格
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
     ctx.lineWidth = 1;
     for (let i = 0; i <= config.gridSize; i++) {
         const pos = i * config.tileSize;
@@ -623,8 +709,24 @@ function draw() {
         ctx.stroke();
     }
     
-    // 绘制食物
-    ctx.fillStyle = '#ff6b6b';
+    // 绘制食物 - 使用渐变和发光效果
+    const foodGradient = ctx.createRadialGradient(
+        (gameState.food.x + 0.5) * config.tileSize,
+        (gameState.food.y + 0.5) * config.tileSize,
+        0,
+        (gameState.food.x + 0.5) * config.tileSize,
+        (gameState.food.y + 0.5) * config.tileSize,
+        config.tileSize / 2
+    );
+    foodGradient.addColorStop(0, '#ff6b6b');
+    foodGradient.addColorStop(0.5, '#ff8e8e');
+    foodGradient.addColorStop(1, '#ff6b6b');
+    
+    // 食物发光效果
+    ctx.shadowColor = '#ff6b6b';
+    ctx.shadowBlur = 15;
+    
+    ctx.fillStyle = foodGradient;
     ctx.beginPath();
     ctx.arc(
         (gameState.food.x + 0.5) * config.tileSize,
@@ -635,11 +737,27 @@ function draw() {
     );
     ctx.fill();
     
+    // 重置阴影
+    ctx.shadowBlur = 0;
+    
     // 绘制贪吃蛇
     gameState.snake.forEach((segment, index) => {
         if (index === 0) {
-            // 头部
-            ctx.fillStyle = '#4ecdc4';
+            // 头部 - 使用渐变
+            const headGradient = ctx.createLinearGradient(
+                segment.x * config.tileSize,
+                segment.y * config.tileSize,
+                (segment.x + 1) * config.tileSize,
+                (segment.y + 1) * config.tileSize
+            );
+            headGradient.addColorStop(0, '#4ecdc4');
+            headGradient.addColorStop(1, '#45b7d1');
+            
+            // 头部发光效果
+            ctx.shadowColor = '#4ecdc4';
+            ctx.shadowBlur = 10;
+            
+            ctx.fillStyle = headGradient;
             ctx.beginPath();
             ctx.arc(
                 (segment.x + 0.5) * config.tileSize,
@@ -650,7 +768,10 @@ function draw() {
             );
             ctx.fill();
             
-            // 眼睛
+            // 重置阴影
+            ctx.shadowBlur = 0;
+            
+            // 眼睛 - 改进效果
             ctx.fillStyle = 'white';
             const eyeSize = config.tileSize / 8;
             const eyeOffset = config.tileSize / 4;
@@ -709,23 +830,30 @@ function draw() {
                 );
             }
         } else {
-            // 身体
-            const gradient = ctx.createLinearGradient(
+            // 身体 - 使用渐变效果
+            const bodyGradient = ctx.createLinearGradient(
                 segment.x * config.tileSize,
                 segment.y * config.tileSize,
                 (segment.x + 1) * config.tileSize,
                 (segment.y + 1) * config.tileSize
             );
-            gradient.addColorStop(0, '#4ecdc4');
-            gradient.addColorStop(1, '#45b7d1');
+            bodyGradient.addColorStop(0, '#45b7d1');
+            bodyGradient.addColorStop(1, '#96ceb4');
             
-            ctx.fillStyle = gradient;
+            // 身体发光效果
+            ctx.shadowColor = '#45b7d1';
+            ctx.shadowBlur = 5;
+            
+            ctx.fillStyle = bodyGradient;
             ctx.fillRect(
                 segment.x * config.tileSize + 2,
                 segment.y * config.tileSize + 2,
                 config.tileSize - 4,
                 config.tileSize - 4
             );
+            
+            // 重置阴影
+            ctx.shadowBlur = 0;
             
             // 身体分段效果
             ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
